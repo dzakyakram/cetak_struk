@@ -116,10 +116,64 @@
     return keepSpaces(line).replace(/\s+/g, ' ');
   }
 
-  var TOKEN_FIX = { 'O': '0', 'o': '0', 'D': '0', 'I': '1', 'l': '1', 'Z': '2', 'S': '5', 'B': '8', 'G': '6' };
+  var TOKEN_FIX = { 'O': '0', 'o': '0', 'D': '0', 'Q': '0', 'q': '0', 'U': '0', 'u': '0', 'I': '1', 'l': '1', 'Z': '2', 'S': '5', 'B': '8', 'G': '6' };
 
   function fixToken(s) {
     return s.replace(/[A-Za-z]/g, function (c) { return TOKEN_FIX[c] || ''; });
+  }
+
+  var OCR_TOKEN_CHARS = '0-9OoIlZSB8G6DdQqUu';
+  var OCR_TOKEN_CLS = '[' + OCR_TOKEN_CHARS + ']';
+  var OCR_TOKEN_NOT = '[^' + OCR_TOKEN_CHARS + ']';
+
+  function tryToken(s) {
+    var m;
+
+    m = s.match(/\d{20}/);
+    if (m) return m[0];
+
+    m = s.match(/(?:^|\D)(\d{4})\D(\d{4})\D(\d{4})\D(\d{4})\D(\d{4})(?:\D|$)/);
+    if (m) return m.slice(1).join('');
+
+    var r = new RegExp('(?:^|' + OCR_TOKEN_NOT + ')(' + OCR_TOKEN_CLS + '{4})' + OCR_TOKEN_NOT + '(' + OCR_TOKEN_CLS + '{4})' + OCR_TOKEN_NOT + '(' + OCR_TOKEN_CLS + '{4})' + OCR_TOKEN_NOT + '(' + OCR_TOKEN_CLS + '{4})' + OCR_TOKEN_NOT + '(' + OCR_TOKEN_CLS + '{4})(?:' + OCR_TOKEN_NOT + '|$)');
+    m = s.match(r);
+    if (m) {
+      var t = fixToken(m.slice(1).join(''));
+      if (/^\d{20}$/.test(t)) return t;
+    }
+
+    var r2 = new RegExp('(?:^|' + OCR_TOKEN_NOT + ')(' + OCR_TOKEN_CLS + '{20})(?:' + OCR_TOKEN_NOT + '|$)');
+    m = s.match(r2);
+    if (m) {
+      var t2 = fixToken(m[1]);
+      if (/^\d{20}$/.test(t2)) return t2;
+    }
+
+    return '';
+  }
+
+  function extractToken(text) {
+    var flat = text.replace(/\s+/g, ' ');
+    var m = flat.match(/\d{20}/);
+    if (m) return m[0];
+
+    var lines = text.split('\n').map(function (l) { return keepSpaces(l); }).filter(function (l) { return l; });
+    var labeled = [];
+    var rest = [];
+    lines.forEach(function (line) {
+      if (/token|stroom|listrik/i.test(line)) labeled.push(line); else rest.push(line);
+    });
+
+    var i, t;
+    for (i = 0; i < labeled.length; i++) {
+      t = tryToken(labeled[i]);
+      if (t) return t;
+    }
+    for (i = 0; i < rest.length; i++) {
+      t = tryToken(rest[i]);
+      if (t) return t;
+    }
+    return tryToken(flat.replace(/\btoken\b|\bstroom\b/ig, ' '));
   }
 
   function fixTarif(s) {
@@ -144,21 +198,7 @@
       admin: 0,
       kwh: null
     };
-    var flat = text.replace(/\s+/g, ' ');
-
-    // --- Token: 20 digit (boleh tanpa spasi, atau grup 4-4-4-4-4) ---
-    var m = flat.match(/\d{20}/);
-    if (m) {
-      res.token = m[0];
-    } else {
-      m = flat.match(/(\d{4})[-\s](\d{4})[-\s](\d{4})[-\s](\d{4})[-\s](\d{4})/);
-      if (m) {
-        res.token = m.slice(1).join('');
-      } else {
-        m = flat.match(/([0-9OoIlZSB8G6]{4})[\s-]([0-9OoIlZSB8G6]{4})[\s-]([0-9OoIlZSB8G6]{4})[\s-]([0-9OoIlZSB8G6]{4})[\s-]([0-9OoIlZSB8G6]{4})/);
-        if (m) res.token = m.slice(1).map(fixToken).join('');
-      }
-    }
+    res.token = extractToken(text);
 
     var pairs = text.split('\n').map(function (raw) {
       return { raw: keepSpaces(raw), line: collapse(raw) };
