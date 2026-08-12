@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tes Bluetooth BLE Printer</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: #f1f3f5;
+      color: #212529;
+      padding: 20px;
+    }
+    main { max-width: 640px; margin: 0 auto; }
+    h1 { font-size: 1.2rem; }
+    .card {
+      background: #fff;
+      border-radius: 10px;
+      padding: 18px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+      margin-bottom: 16px;
+    }
+    .btn {
+      padding: 12px 18px;
+      font-size: 1rem;
+      font-weight: 600;
+      border: none;
+      border-radius: 8px;
+      background: #1b6ca8;
+      color: #fff;
+      cursor: pointer;
+      width: 100%;
+    }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    ol { padding-left: 20px; font-size: 0.9rem; line-height: 1.7; }
+    #log {
+      font-family: Consolas, monospace;
+      font-size: 0.85rem;
+      background: #212529;
+      color: #69db7c;
+      border-radius: 8px;
+      padding: 12px;
+      min-height: 60px;
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+    .ok { color: #116b2d; font-weight: 600; }
+    .err { color: #a61b1b; font-weight: 600; }
+    .note { font-size: 0.85rem; color: #495057; }
+  </style>
+</head>
+<body>
+  <main>
+    <div class="card">
+      <h1>Tes BLE Printer Thermal (58mm)</h1>
+      <p class="note">
+        Tujuan: cek apakah printer dapat dilihat/dipilih lewat Bluetooth BLE dari browser Chrome.
+        Hasil menentukan jalur aplikasi: <b>PWA (BLE)</b> atau <b>APK (SPP)</b>.
+      </p>
+      <ol>
+        <li>Nyalakan Bluetooth di HP/laptop ini.</li>
+        <li>Nyalakan printer &amp; pastikan sedang <b>discoverable</b> (mode pairing — lihat manual; biasanya nyala = siap dipindai, atau tekan tombol BT sampai lampu berkedip).</li>
+        <li>Pastikan printer <b>belum terhubung ke perangkat lain</b>.</li>
+        <li>Tekan tombol di bawah. Akan muncul daftar perangkat BLE di sekitar — carikan nama printer (mis. <code>CSC MP-58M</code>, <code>GEZHI</code>, <code>BlueTooth Printer</code>, dll).</li>
+        <li>Pilih printer-nya. Jika muncul di daftar → <b class="ok">printer BLE</b>. Jika tidak muncul sama sekali → kemungkinan <b>SPP</b> (butuh APK).</li>
+      </ol>
+      <button id="scan" class="btn">Pindai Perangkat BLE</button>
+      <p style="margin-top:10px" class="note">
+        Catatan: browser hanya menampilkan perangkat <i>iBeacon</i> dan yang menyiarkan info service BLE.
+        Printer SPP tidak akan terlihat. Halaman ini butuh HTTPS bila diakses dari HP (bukan localhost).
+      </p>
+    </div>
+    <div class="card">
+      <h2>Log</h2>
+      <pre id="log">Belum ada aktifitas. (browser ini: ?)</pre>
+    </div>
+  </main>
+  <script>
+    var log = document.getElementById('log');
+    function add(line) {
+      var t = new Date().toLocaleTimeString();
+      log.textContent = '[' + t + '] ' + line + '\n' + log.textContent;
+    }
+    document.addEventListener('DOMContentLoaded', function () {
+      var btn = document.getElementById('scan');
+      if (!('bluetooth' in navigator)) {
+        log.textContent = 'Web Bluetooth TIDAK didukung browser ini.\nGunakan Chrome 85+ (Android/desktop), atau Edge.';
+        btn.disabled = true;
+        return;
+      }
+      add('Web Bluetooth didukung. ' +
+        (navigator.bluetooth.getAvailability ? 'Menunggu status adapter...' : ''));
+
+      if (navigator.bluetooth.getAvailability) {
+        navigator.bluetooth.getAvailability().then(function (ok) {
+          add(ok ? 'Adapter Bluetooth: AKTIF.' : 'Adapter Bluetooth: MATI / tidak terdeteksi.');
+        });
+      }
+
+      btn.addEventListener('click', async function () {
+        btn.disabled = true;
+        var SERVICES = [
+          '000018f0-0000-1000-8000-00805f9b34fb',
+          '0000ff00-0000-1000-8000-00805f9b34fb',
+          '49535343-fe7d-4ae5-8fa9-9fafd205e455',
+          'e7810a71-73ae-499d-8c15-faa9aef0c3f2',
+          '0000ffe0-0000-1000-8000-00805f9b34fb',
+          '0000ffe5-0000-1000-8000-00805f9b34fb',
+          '0000fff0-0000-1000-8000-00805f9b34fb',
+          '0000ae30-0000-1000-8000-00805f9b34fb'
+        ];
+        try {
+          add('Meminta picker BLE... pastikan printer menyala & discoverable.');
+          var device = await navigator.bluetooth.requestDevice({
+            acceptAllDevices: true,
+            optionalServices: SERVICES
+          });
+          add('Terpilih: "' + (device.name || '(tanpa nama)') + '" id=' + device.id);
+          add('PRINTER TERLIHAT DI BLE -> jalur PWA memungkinkan.');
+          add('Mencoba connect GATT...');
+          var server = await device.gatt.connect();
+          add('GATT connect: OK.');
+          var found = false;
+          for (var i = 0; i < SERVICES.length; i++) {
+            var service;
+            try {
+              service = await server.getPrimaryService(SERVICES[i]);
+            } catch (e) { continue; }
+            add('Service ditemukan: ' + SERVICES[i]);
+            var chars = await service.getCharacteristics();
+            for (var j = 0; j < chars.length; j++) {
+              var props = [];
+              if (chars[j].properties.write) props.push('write');
+              if (chars[j].properties.writeWithoutResponse) props.push('writeWithoutResponse');
+              if (props.length) {
+                add('  karakteristik TULIS (' + props.join(',') + '): ' + chars[j].uuid);
+                found = true;
+              }
+            }
+          }
+          add(found ? '=> Service + karakteristik tulis ditemukan. PWA bisa mencetak langsung.' :
+            '=> Tidak ada service yang cocok. Jika printer tidak terlihat, kemungkinan besar ia SPP (butuh APK).');
+          await server.disconnect();
+        } catch (e) {
+          if (e.name === 'NotFoundError') {
+            add('Tidak ada yang dipilih / perangkat printer tidak muncul. ' +
+              'Jika printer tidak terlihat, kemungkinan besar ia SPP (butuh APK).');
+          } else {
+            add('Error: ' + e.name + ' - ' + e.message);
+          }
+        } finally {
+          btn.disabled = false;
+        }
+      });
+    });
+  </script>
+</body>
+</html>

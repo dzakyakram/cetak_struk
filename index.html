@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Cetak Struk Token PLN</title>
+  <meta name="theme-color" content="#1b2a41">
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <header class="topbar">
+    <h1>Cetak Struk Token PLN</h1>
+    <div class="printer-box">
+      <span id="statusText" class="status err">Memeriksa koneksi...</span>
+      <button id="btnBridge" class="btn primary">Koneksi Bridge</button>
+      <button id="btnUsb" class="btn">Koneksi USB</button>
+      <button id="btnSerial" class="btn">Koneksi Serial</button>
+      <button id="btnBle" class="btn">Koneksi Bluetooth</button>
+      <button id="btnDisconnect" class="btn danger" style="display:none">Putus</button>
+      <span id="printerSelectWrap" style="display:none">
+        <select id="printerSelect"><option value="">-- Pilih printer --</option></select>
+      </span>
+    </div>
+  </header>
+
+  <main>
+    <div class="grid">
+      <div class="col">
+        <section class="card">
+          <h2>Form Struk</h2>
+          <label>No. Meter / ID Pelanggan
+            <input id="noMeter" type="text" inputmode="numeric" placeholder="contoh: 123456789012">
+          </label>
+          <label>Nama Pelanggan
+            <input id="nama" type="text" placeholder="contoh: BUDI SANTOSO">
+          </label>
+          <div class="row2">
+            <label>Daya (VA)
+              <select id="daya">
+                <option value="450">450</option>
+                <option value="900">900</option>
+                <option value="1300" selected>1300</option>
+                <option value="2200">2200</option>
+                <option value="3500">3500</option>
+                <option value="4400">4400</option>
+                <option value="5500">5500</option>
+                <option value="6600">6600</option>
+              </select>
+            </label>
+            <label>Tarif
+              <input id="tarif" type="text" value="R-1">
+            </label>
+          </div>
+          <label>Nominal Token
+            <select id="nominal">
+              <option value="20000">Rp 20.000</option>
+              <option value="50000" selected>Rp 50.000</option>
+              <option value="100000">Rp 100.000</option>
+              <option value="200000">Rp 200.000</option>
+              <option value="500000">Rp 500.000</option>
+              <option value="1000000">Rp 1.000.000</option>
+            </select>
+          </label>
+          <label>Biaya Admin (Rp)
+            <input id="admin" type="number" value="2000" step="500" min="0">
+          </label>
+          <label>Total kWh (dari hasil scan / isi manual)
+            <input id="totalKwh" type="number" step="0.01" min="0" placeholder="misal: 68,9">
+          </label>
+          <label>Token 20 Digit
+            <input id="token" type="text" inputmode="numeric" maxlength="24" placeholder="1234 5678 9012 3456 7890">
+          </label>
+          <p id="kwhInfo" class="info"></p>
+          <p id="errBox" class="error"></p>
+          <button id="btnPrint" class="btn primary big">Cetak Struk</button>
+        </section>
+
+        <section class="card">
+          <h2>Pengaturan</h2>
+          <details open>
+            <summary>Profil Toko &amp; Printer</summary>
+            <label>Nama Toko
+              <input id="tNama" type="text" placeholder="TOKO LISTRIK ANDA">
+            </label>
+            <label>Alamat
+              <input id="tAlamat" type="text" placeholder="Jl. Contoh No. 123, Bandung">
+            </label>
+            <label>Telepon
+              <input id="tTelp" type="text" placeholder="0812-3456-7890">
+            </label>
+            <label>Pesan Penutup (satu kalimat per baris)
+              <textarea id="tFooter" rows="2"></textarea>
+            </label>
+            <label>Baud Rate Serial
+              <input id="tBaud" type="number" value="9600">
+            </label>
+            <label>Prioritas Koneksi Otomatis
+              <select id="tTransport">
+                <option value="auto">Otomatis</option>
+                <option value="bridge">Bridge dulu</option>
+                <option value="ble">Bluetooth dulu</option>
+                <option value="serial">Serial dulu</option>
+                <option value="usb">USB dulu</option>
+              </select>
+            </label>
+            <button id="btnSaveCfg" class="btn">Simpan Pengaturan</button>
+            <button id="btnTest" class="btn">Uji Cetak Printer</button>
+          </details>
+        </section>
+      </div>
+
+      <div class="col">
+        <section class="card">
+          <h2>Scan Struk (Foto / Gambar)</h2>
+          <p class="info">Foto struk token atau screenshot SMS token. Isian akan terisi otomatis. Butuh koneksi internet saat pertama kali (unduh mesin OCR).</p>
+          <div class="row2">
+            <button id="btnCamera" class="btn">Scan Kamera</button>
+            <button id="btnUpload" class="btn">Pilih Gambar</button>
+          </div>
+          <input id="fileScan" type="file" accept="image/*" style="display:none">
+          <img id="scanPreview" alt="Pratinjau gambar" style="display:none;max-width:100%;margin-top:10px;border:1px solid #ced4da;border-radius:6px">
+          <p id="ocrStatus" class="info" style="display:none"></p>
+          <details>
+            <summary>Hasil OCR mentah (debug)</summary>
+            <pre id="ocrRaw" class="preview" style="min-height:80px;font-size:11px"></pre>
+          </details>
+        </section>
+
+        <section class="card">
+          <h2>Pratinjau Struk</h2>
+          <pre id="preview" class="preview"></pre>
+        </section>
+
+        <section class="card">
+          <h2>Riwayat Cetak</h2>
+          <table>
+            <thead>
+              <tr>
+                <th>No. Struk</th>
+                <th>Tanggal</th>
+                <th>No. Meter</th>
+                <th>Nama</th>
+                <th>Nominal</th>
+                <th>Aksi</th>
+              </tr>
+            </thead>
+            <tbody id="riwayatBody"></tbody>
+          </table>
+        </section>
+      </div>
+    </div>
+  </main>
+
+  <div id="toast" class="toast"></div>
+
+  <script src="vendor/tesseract/tesseract.min.js"></script>
+  <script src="js/escpos.js"></script>
+  <script src="js/store.js"></script>
+  <script src="js/printer.js"></script>
+  <script src="js/ocr.js"></script>
+  <script src="js/app.js"></script>
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', function () {
+        navigator.serviceWorker.register('sw.js').then(function (reg) {
+          console.log('Service worker terdaftar, scope:', reg.scope);
+        }).catch(function (err) {
+          console.warn('Gagal daftar service worker:', err);
+        });
+      });
+    }
+  </script>
+</body>
+</html>

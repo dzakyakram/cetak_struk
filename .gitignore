@@ -1,0 +1,12 @@
+# File khusus PC - jangan di-push ke GitHub Pages
+bridge.js
+bridge.ps1
+bridge-config.json
+server.js
+server-https.js
+start.ps1
+start-phone.ps1
+gen-cert.ps1
+install-printer.ps1
+install-printer.bat
+*.pfx
