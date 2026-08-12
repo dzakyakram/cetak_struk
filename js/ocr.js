@@ -9,6 +9,14 @@
     if (!workerPromise) {
       workerPromise = (async function () {
         if (!global.Tesseract) throw new Error('Library tesseract.js belum dimuat.');
+        var BASE = (function () {
+          var scripts = document.getElementsByTagName('script');
+          for (var i = 0; i < scripts.length; i++) {
+            var s = scripts[i].src;
+            if (s.indexOf('tesseract.min.js') !== -1) return s.slice(0, s.lastIndexOf('/') + 1);
+          }
+          return '';
+        })();
         var worker = await Tesseract.createWorker('eng', 1, {
           logger: function (m) {
             if (m && m.status) {
@@ -19,9 +27,9 @@
               }
             }
           },
-          workerPath: '/vendor/tesseract/worker.min.js',
-          corePath: '/vendor/tesseract/',
-          langPath: '/vendor/tesseract/',
+          workerPath: BASE + 'worker.min.js',
+          corePath: BASE,
+          langPath: BASE,
           gzip: true
         });
         await worker.setParameters({
