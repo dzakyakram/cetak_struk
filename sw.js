@@ -1,5 +1,5 @@
-var CACHE = 'cetak-struk-v8';
-var CACHE_RUNTIME = 'cetak-struk-runtime-v8';
+var CACHE = 'cetak-struk-v9';
+var CACHE_RUNTIME = 'cetak-struk-runtime-v9';
 
 var PRECACHE = [
   './',
